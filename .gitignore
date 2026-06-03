@@ -1,0 +1,34 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.ipynb_checkpoints/
+*.ipynb
+.streamlit/secrets.toml
+
+# Local caches and model training by-products
+catboost_info/
+figures/catboost_info/
+figures/_legacy_numbering_before_shift/
+figures/**/subfigures/
+figures/**/*_jupyter_code.ipynb
+
+# Large/reference material not needed by the web app
+参考文献/
+厌氧消化/
+*.docx
+*.tmp
+~$*
+~WRL*.tmp
+SCI_manuscript*
+论文设计_*
+
+# Raw workbooks are large; the Streamlit app uses CSV/tables instead.
+*.xlsx
+!tables/*.xlsx
+
+# Keep web-facing figure PNGs, skip generated PDFs in the repository.
+*.pdf
+*.pptx
+*.tif
+*.tiff
