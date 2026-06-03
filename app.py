@@ -233,53 +233,109 @@ st.set_page_config(page_title="Biogas STP Predictor", page_icon=":chart_with_upw
 st.markdown(
     """
     <style>
-    .stApp { background: #f7faf9; color: #1f2933; }
-    .block-container { padding-top: 1.2rem; padding-bottom: 2rem; max-width: 1180px; }
-    .hero {
-        background: linear-gradient(135deg, #123c55 0%, #0f766e 64%, #91D1C2 100%);
-        border-radius: 14px;
-        padding: 26px 30px;
-        color: white;
-        margin-bottom: 18px;
-        box-shadow: 0 16px 40px rgba(18, 60, 85, 0.18);
+    :root {
+        --ink: #24313d;
+        --muted: #667785;
+        --line: #dce7e2;
+        --panel: #ffffff;
+        --soft: #f6faf8;
+        --soft-2: #eef7f3;
+        --accent: #2f8f83;
+        --accent-2: #d8efe8;
+        --accent-3: #f7c873;
     }
-    .hero h1 { margin: 0 0 0.45rem 0; font-size: 2.05rem; letter-spacing: 0; line-height: 1.15; }
-    .hero p { margin: 0; max-width: 880px; font-size: 1.02rem; line-height: 1.55; opacity: 0.94; }
-    div[data-testid="stForm"] {
-        background: #ffffff;
-        border: 1px solid #dce8e8;
+    .stApp { background: linear-gradient(180deg, #fbfdfc 0%, #f3f8f6 100%); color: var(--ink); }
+    .block-container { padding-top: 1.1rem; padding-bottom: 2.2rem; max-width: 1160px; }
+    section[data-testid="stSidebar"] { background: #f8fbfa; border-right: 1px solid var(--line); }
+    section[data-testid="stSidebar"] h2, section[data-testid="stSidebar"] h3 { color: var(--ink); }
+    .hero {
+        background:
+            radial-gradient(circle at 96% 16%, rgba(247, 200, 115, 0.22), transparent 28%),
+            linear-gradient(135deg, #ffffff 0%, #f1faf6 100%);
+        border: 1px solid var(--line);
+        border-left: 6px solid var(--accent);
         border-radius: 12px;
-        padding: 18px 18px 8px 18px;
-        box-shadow: 0 8px 24px rgba(31, 41, 51, 0.05);
+        padding: 24px 28px;
+        color: var(--ink);
+        margin-bottom: 16px;
+        box-shadow: 0 12px 28px rgba(36, 49, 61, 0.06);
+    }
+    .hero h1 { margin: 0 0 0.35rem 0; font-size: 2.0rem; letter-spacing: 0; line-height: 1.15; color: var(--ink); }
+    .hero p { margin: 0; max-width: 840px; font-size: 1.01rem; line-height: 1.55; color: var(--muted); }
+    div[data-baseweb="tab-list"] {
+        gap: 8px;
+        background: #ffffff;
+        border: 1px solid var(--line);
+        border-radius: 11px;
+        padding: 6px;
+        margin-bottom: 12px;
+        box-shadow: 0 8px 22px rgba(36, 49, 61, 0.04);
+    }
+    button[data-baseweb="tab"] {
+        border-radius: 8px;
+        color: var(--muted);
+        padding: 8px 16px;
+    }
+    button[data-baseweb="tab"][aria-selected="true"] {
+        background: var(--soft-2);
+        color: var(--accent);
+        font-weight: 750;
+    }
+    div[data-testid="stForm"] {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 18px 18px 10px 18px;
+        box-shadow: 0 10px 24px rgba(36, 49, 61, 0.045);
     }
     div[data-testid="stMetric"] {
-        background: #ffffff;
-        border: 1px solid #dce8e8;
+        background: var(--panel);
+        border: 1px solid var(--line);
         border-radius: 12px;
         padding: 14px 16px;
-        min-height: 104px;
-        box-shadow: 0 8px 22px rgba(31, 41, 51, 0.045);
+        min-height: 98px;
+        box-shadow: 0 8px 20px rgba(36, 49, 61, 0.04);
     }
-    div[data-testid="stMetricValue"] { color: #123c55; }
+    div[data-testid="stMetricLabel"] { color: var(--muted); }
+    div[data-testid="stMetricValue"] { color: var(--accent); }
     .result-card {
-        background: #ffffff;
-        border: 1px solid #dce8e8;
-        border-radius: 14px;
-        padding: 20px 22px;
-        box-shadow: 0 10px 28px rgba(31, 41, 51, 0.06);
+        background: linear-gradient(180deg, #ffffff 0%, #f8fcfa 100%);
+        border: 1px solid var(--line);
+        border-top: 4px solid var(--accent-3);
+        border-radius: 12px;
+        padding: 20px 22px 18px 22px;
+        box-shadow: 0 12px 26px rgba(36, 49, 61, 0.055);
         margin-bottom: 16px;
     }
     .section-title {
-        color: #123c55;
-        font-size: 1.02rem;
+        color: var(--ink);
+        font-size: 1.0rem;
         font-weight: 800;
         margin: 0.1rem 0 0.65rem 0;
     }
-    .small-note { color: #607180; font-size: 0.92rem; line-height: 1.52; }
+    .small-note { color: var(--muted); font-size: 0.92rem; line-height: 1.52; }
+    label, .stCaptionContainer, div[data-testid="stMarkdownContainer"] p { color: var(--muted); }
+    div[data-baseweb="input"] {
+        border-radius: 8px;
+        background: #fbfdfc;
+    }
     .stButton > button, .stDownloadButton > button {
         border-radius: 9px;
         min-height: 42px;
         font-weight: 750;
+        border: 1px solid #b8dcd2;
+        background: #eef8f4;
+        color: #206c63;
+    }
+    .stButton > button:hover, .stDownloadButton > button:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+        background: #e4f3ee;
+    }
+    div[data-testid="stDataFrame"] {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        overflow: hidden;
     }
     </style>
     """,
@@ -318,31 +374,29 @@ with st.sidebar:
 single_tab, batch_tab = st.tabs(["Single prediction", "Batch prediction"])
 
 with single_tab:
-    left, right = st.columns([1.12, 0.88], gap="large")
-    with left:
-        st.markdown('<div class="section-title">Input parameters</div>', unsafe_allow_html=True)
-        with st.form("single_prediction_form"):
-            c1, c2 = st.columns(2)
-            with c1:
-                reactor_display = st.selectbox("Reactor", sorted(clean_df["reactor_id"].map(rlab).unique()))
-                reactor_id = raw_reactor(reactor_display)
-                reactor_type = clean_df.loc[clean_df["reactor_id"] == reactor_id, "reactor_type"].mode().iat[0]
-                manure = st.number_input("Manure fed (kg)", value=float(med.get("manure_fed_kg", 20.0)), min_value=0.0)
-                water = st.number_input("Water (kg)", value=float(med.get("water_kg", 20.0)), min_value=0.0)
-                local_temp = st.number_input("Local air temperature", value=float(med.get("air_temp_in_situ", 20.0)))
-                lag1 = st.number_input("Biogas lag 1 (mL)", value=float(med.get("biogas_lag1", 500.0)), min_value=0.0)
-                lag2 = st.number_input("Biogas lag 2 (mL)", value=float(med.get("biogas_lag2", 500.0)), min_value=0.0)
-                roll7 = st.number_input("7-day historical average (mL)", value=float(med.get("biogas_roll7", 500.0)), min_value=0.0)
-            with c2:
-                mean_temp = st.number_input("Daily mean air temperature", value=float(med.get("daily_mean_air_temp", 18.0)))
-                max_temp = st.number_input("Daily max air temperature", value=float(med.get("daily_max_air_temp", 24.0)))
-                min_temp = st.number_input("Daily min air temperature", value=float(med.get("daily_min_air_temp", 14.0)))
-                solar = st.number_input("Daily solar", value=float(med.get("daily_solar", 140.0)), min_value=0.0)
-                precip = st.number_input("Daily precipitation", value=float(med.get("daily_precip", 0.0)), min_value=0.0)
-                atm_p = st.number_input("Daily atmospheric pressure", value=float(med.get("daily_atm_p", 81.7)))
-                vpd = st.number_input("Daily VPD", value=float(med.get("daily_vpd", 0.3)), min_value=0.0)
-                wind = st.number_input("Daily wind", value=float(med.get("daily_wind", 0.8)), min_value=0.0)
-            submitted = st.form_submit_button("Predict biogas production", use_container_width=True)
+    st.markdown('<div class="section-title">Input parameters</div>', unsafe_allow_html=True)
+    with st.form("single_prediction_form"):
+        c1, c2 = st.columns(2)
+        with c1:
+            reactor_display = st.selectbox("Reactor", sorted(clean_df["reactor_id"].map(rlab).unique()))
+            reactor_id = raw_reactor(reactor_display)
+            reactor_type = clean_df.loc[clean_df["reactor_id"] == reactor_id, "reactor_type"].mode().iat[0]
+            manure = st.number_input("Manure fed (kg)", value=float(med.get("manure_fed_kg", 20.0)), min_value=0.0)
+            water = st.number_input("Water (kg)", value=float(med.get("water_kg", 20.0)), min_value=0.0)
+            local_temp = st.number_input("Local air temperature", value=float(med.get("air_temp_in_situ", 20.0)))
+            lag1 = st.number_input("Biogas lag 1 (mL)", value=float(med.get("biogas_lag1", 500.0)), min_value=0.0)
+            lag2 = st.number_input("Biogas lag 2 (mL)", value=float(med.get("biogas_lag2", 500.0)), min_value=0.0)
+            roll7 = st.number_input("7-day historical average (mL)", value=float(med.get("biogas_roll7", 500.0)), min_value=0.0)
+        with c2:
+            mean_temp = st.number_input("Daily mean air temperature", value=float(med.get("daily_mean_air_temp", 18.0)))
+            max_temp = st.number_input("Daily max air temperature", value=float(med.get("daily_max_air_temp", 24.0)))
+            min_temp = st.number_input("Daily min air temperature", value=float(med.get("daily_min_air_temp", 14.0)))
+            solar = st.number_input("Daily solar", value=float(med.get("daily_solar", 140.0)), min_value=0.0)
+            precip = st.number_input("Daily precipitation", value=float(med.get("daily_precip", 0.0)), min_value=0.0)
+            atm_p = st.number_input("Daily atmospheric pressure", value=float(med.get("daily_atm_p", 81.7)))
+            vpd = st.number_input("Daily VPD", value=float(med.get("daily_vpd", 0.3)), min_value=0.0)
+            wind = st.number_input("Daily wind", value=float(med.get("daily_wind", 0.8)), min_value=0.0)
+        submitted = st.form_submit_button("Predict biogas production", use_container_width=True)
 
     values = {
         "manure_fed_kg": manure,
@@ -366,7 +420,8 @@ with single_tab:
     sample = pd.DataFrame([sample_row])[all_features]
     prediction = float(model.predict(sample)[0])
 
-    with right:
+    result_col, detail_col = st.columns([0.42, 0.58], gap="large")
+    with result_col:
         st.markdown('<div class="section-title">Prediction output</div>', unsafe_allow_html=True)
         st.markdown('<div class="result-card">', unsafe_allow_html=True)
         if submitted:
@@ -374,6 +429,8 @@ with single_tab:
         st.metric("Predicted daily biogas at STP", f"{prediction:.1f} mL")
         st.caption("Prediction is generated from the cleaned ExtraTrees regression model.")
         st.markdown("</div>", unsafe_allow_html=True)
+    with detail_col:
+        st.markdown('<div class="section-title">Prediction record</div>', unsafe_allow_html=True)
         output = pd.DataFrame(
             [
                 {
