@@ -315,6 +315,21 @@ st.markdown(
     }
     .small-note { color: var(--muted); font-size: 0.92rem; line-height: 1.52; }
     label, .stCaptionContainer, div[data-testid="stMarkdownContainer"] p { color: var(--muted); }
+    div[data-testid="stWidgetLabel"] label,
+    div[data-testid="stWidgetLabel"] p,
+    div[data-testid="stSelectbox"] label,
+    div[data-testid="stNumberInput"] label,
+    div[data-testid="stFileUploader"] label {
+        color: var(--ink);
+        font-size: 1.06rem;
+        font-weight: 720;
+        line-height: 1.35;
+        margin-bottom: 0.28rem;
+    }
+    div[data-testid="stNumberInput"] input,
+    div[data-testid="stSelectbox"] div[data-baseweb="select"] {
+        font-size: 1.02rem;
+    }
     div[data-baseweb="input"] {
         border-radius: 8px;
         background: #fbfdfc;
