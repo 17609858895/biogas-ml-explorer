@@ -8,7 +8,7 @@ Streamlit web UI for predicting daily biogas production at STP from anaerobic-di
 - Predicts `y_biogas_STP` in mL using a cleaned ExtraTrees regression model.
 - Supports CSV batch prediction.
 - Provides a downloadable CSV for single and batch predictions.
-- Keeps model diagnostics and figures in the sidebar as auxiliary context only.
+- Retrains a lightweight model from the cleaned CSV at startup.
 
 ## Run Locally
 
@@ -20,9 +20,8 @@ streamlit run app.py
 The app reads:
 
 - `merged_train_df.csv`
-- `tables/*.csv`
-- `figures/Fig01_*` to `figures/Fig09_*`
-- `figures/FigS1_*` to `figures/FigS4_*`
+
+Static figure and table output files are not included in this lightweight app repository.
 
 ## Batch Input Columns
 

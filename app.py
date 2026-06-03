@@ -16,8 +16,6 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 ROOT = Path(__file__).resolve().parent
 DATA_PATH = ROOT / "merged_train_df.csv"
-TABLE_DIR = ROOT / "tables"
-FIG_DIR = ROOT / "figures"
 TARGET = "y_biogas_STP"
 REACTOR_LABELS = {"RI-FLEX": "R1-FLEX"}
 REACTOR_VALUES = {v: k for k, v in REACTOR_LABELS.items()}
@@ -42,14 +40,6 @@ def row_keys(frame: pd.DataFrame) -> pd.Series:
 
 
 @st.cache_data(show_spinner=False)
-def load_tables() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    table1 = pd.read_csv(TABLE_DIR / "Table1_dataset_reactor_summary.csv")
-    table2 = pd.read_csv(TABLE_DIR / "Table2_model_performance.csv")
-    summary = pd.read_csv(TABLE_DIR / "ml_error_filter_summary.csv")
-    return table1, table2, summary
-
-
-@st.cache_data(show_spinner=False)
 def prepare_data() -> tuple[pd.DataFrame, list[str], list[str], list[str]]:
     df_raw = pd.read_csv(DATA_PATH, parse_dates=["date"])
     y = df_raw[TARGET].dropna()
@@ -65,12 +55,6 @@ def prepare_data() -> tuple[pd.DataFrame, list[str], list[str], list[str]]:
     df["biogas_roll7"] = grouped[TARGET].apply(lambda s: s.shift(1).rolling(7, min_periods=2).mean())
     df["biogas_delta1"] = df["biogas_lag1"] - df["biogas_lag2"]
     df["days_since_prev"] = grouped["date"].diff().dt.days
-
-    exclusions = TABLE_DIR / "ml_error_removed_rows.csv"
-    if exclusions.exists():
-        removed = pd.read_csv(exclusions)
-        if "row_key" in removed.columns:
-            df = df.loc[~row_keys(df).isin(set(removed["row_key"].astype(str)))].copy()
 
     df = df.sort_values(["date", "reactor_id"]).reset_index(drop=True)
     hist = ["biogas_lag1", "biogas_lag2", "biogas_roll3", "biogas_roll7", "biogas_delta1", "days_since_prev"]
@@ -358,7 +342,6 @@ st.markdown(
 )
 
 
-table1, table2, filter_summary = load_tables()
 model, clean_df, demo_metrics, numeric_features, categorical_features, all_features = train_demo_model()
 med = clean_df[numeric_features].median(numeric_only=True)
 
@@ -379,12 +362,8 @@ with st.sidebar:
     st.metric("Training records", f"{int(demo_metrics['n_train'])}")
     st.metric("Test records", f"{int(demo_metrics['n_test'])}")
     st.divider()
-    st.subheader("Auxiliary")
-    st.dataframe(table2[["Model", "R²", "RMSE"]].head(5), use_container_width=True, hide_index=True)
-    fig_path = FIG_DIR / "Fig03_model_comparison" / "Fig03_model_comparison.png"
-    if fig_path.exists():
-        with st.expander("Model comparison figure"):
-            st.image(str(fig_path), use_column_width=True)
+    st.subheader("Model note")
+    st.caption("The app retrains a lightweight ExtraTrees model from the cleaned CSV at startup. No static figures or table files are required.")
 
 single_tab, batch_tab = st.tabs(["Single prediction", "Batch prediction"])
 
