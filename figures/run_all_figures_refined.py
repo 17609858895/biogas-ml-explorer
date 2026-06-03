@@ -877,6 +877,8 @@ def fig4_model_comparison(performance, fold_df, preds_test, test):
         vals = scaled.loc[model].tolist() + [scaled.loc[model].tolist()[0]]
         ax.plot(angles, vals, color=MODEL_COLORS[i], lw=2.0, alpha=0.92, label=model)
         ax.fill(angles, vals, color=MODEL_COLORS[i], alpha=0.045)
+    pos = ax.get_position()
+    ax.set_position([pos.x0 - 0.035, pos.y0, pos.width, pos.height])
     ax.legend(loc="center left", bbox_to_anchor=(1.10, 0.50), frameon=False, fontsize=11)
 
     ax = fig.add_subplot(gs[0, 1])
