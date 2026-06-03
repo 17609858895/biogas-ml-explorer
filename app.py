@@ -146,113 +146,274 @@ def show_metric_cards(metrics: dict[str, float]) -> None:
     c4.metric("Test MAE", f"{metrics['mae']:.1f} mL")
 
 
-def image_path(folder: str, stem: str) -> Path:
-    return FIG_DIR / folder / f"{stem}.png"
-
-
-st.set_page_config(page_title="Biogas ML Explorer", page_icon=":bar_chart:", layout="wide")
-
-st.title("Biogas Machine Learning Explorer")
-st.caption("Farm-scale anaerobic digestion data, cleaned model diagnostics, and a lightweight prediction demo.")
-
-table1, table2, filter_summary = load_tables()
-model, clean_df, demo_metrics, numeric_features, categorical_features, all_features = train_demo_model()
-
-tab_overview, tab_figures, tab_predict, tab_data = st.tabs(["Overview", "Figures", "Predictor", "Data"])
-
-with tab_overview:
-    st.subheader("Cleaned modelling dataset")
-    s = filter_summary.iloc[0]
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("After 3xIQR", int(s.iloc[0]))
-    c2.metric("Kept records", int(s["Kept records"]))
-    c3.metric("Removed records", int(s["Removed records"]))
-    c4.metric("CV-error cutoff", f"{s['ML error cutoff']:.1f}")
-
-    st.subheader("ExtraTrees demo model")
-    show_metric_cards(demo_metrics)
-    st.caption("The demo model is fitted from the same cleaned records used in the manuscript tables.")
-
-    st.subheader("Published model comparison")
-    st.dataframe(table2, use_container_width=True, hide_index=True)
-
-with tab_figures:
-    st.subheader("Main figures")
-    figure_options = {
-        "Fig. 1 Target distribution": ("Fig01_target_distribution", "Fig01_target_distribution"),
-        "Fig. 2 Correlation": ("Fig02_correlation", "Fig02_correlation"),
-        "Fig. 3 Model comparison": ("Fig03_model_comparison", "Fig03_model_comparison"),
-        "Fig. 4 Predicted vs observed": ("Fig04_pred_vs_obs", "Fig04_pred_vs_obs"),
-        "Fig. 5 Temporal validation": ("Fig05_temporal_validation", "Fig05_temporal_validation"),
-        "Fig. 6 Residual diagnostics": ("Fig06_residual_reliability", "Fig06_residual_reliability"),
-        "Fig. 7 SHAP importance": ("Fig07_SHAP_importance", "Fig07_SHAP_importance"),
-        "Fig. 8 PDP/ALE interaction": ("Fig08_PDP_ALE_interaction", "Fig08_PDP_ALE_interaction"),
-        "Fig. 9 Feature ablation": ("Fig09_feature_ablation", "Fig09_feature_ablation"),
-        "Fig. S1 Data audit": ("FigS1_data_audit", "FigS1_data_audit"),
-    }
-    selected = st.selectbox("Choose a figure", list(figure_options))
-    folder, stem = figure_options[selected]
-    path = image_path(folder, stem)
-    if path.exists():
-        st.image(str(path), use_container_width=True)
-    else:
-        st.warning(f"Missing figure file: {path}")
-
-with tab_predict:
-    st.subheader("Single-sample prediction")
-    st.caption("Use this as an exploratory model demo, not as a calibrated operational controller.")
-    med = clean_df[numeric_features].median(numeric_only=True)
-    left, right = st.columns(2)
-
-    with left:
-        reactor_display = st.selectbox("Reactor", sorted(clean_df["reactor_id"].map(rlab).unique()))
-        reactor_id = raw_reactor(reactor_display)
-        reactor_type = clean_df.loc[clean_df["reactor_id"] == reactor_id, "reactor_type"].mode().iat[0]
-        manure = st.number_input("Manure fed (kg)", value=float(med.get("manure_fed_kg", 20.0)), min_value=0.0)
-        water = st.number_input("Water (kg)", value=float(med.get("water_kg", 20.0)), min_value=0.0)
-        local_temp = st.number_input("Local air temperature", value=float(med.get("air_temp_in_situ", 20.0)))
-        lag1 = st.number_input("Biogas lag 1 (mL)", value=float(med.get("biogas_lag1", 500.0)), min_value=0.0)
-        lag2 = st.number_input("Biogas lag 2 (mL)", value=float(med.get("biogas_lag2", 500.0)), min_value=0.0)
-
-    with right:
-        mean_temp = st.number_input("Daily mean air temperature", value=float(med.get("daily_mean_air_temp", 18.0)))
-        max_temp = st.number_input("Daily max air temperature", value=float(med.get("daily_max_air_temp", 24.0)))
-        min_temp = st.number_input("Daily min air temperature", value=float(med.get("daily_min_air_temp", 14.0)))
-        solar = st.number_input("Daily solar", value=float(med.get("daily_solar", 140.0)), min_value=0.0)
-        precip = st.number_input("Daily precipitation", value=float(med.get("daily_precip", 0.0)), min_value=0.0)
-        wind = st.number_input("Daily wind", value=float(med.get("daily_wind", 0.8)), min_value=0.0)
-
-    row = {col: float(med.get(col, 0.0)) for col in numeric_features}
+def build_sample_row(
+    med: pd.Series,
+    numeric_features: list[str],
+    reactor_id: str,
+    reactor_type: str,
+    values: dict[str, float],
+) -> dict[str, object]:
+    row: dict[str, object] = {col: float(med.get(col, 0.0)) for col in numeric_features}
+    lag1 = values["biogas_lag1"]
+    lag2 = values["biogas_lag2"]
+    max_temp = values["daily_max_air_temp"]
+    min_temp = values["daily_min_air_temp"]
+    row.update(values)
     row.update(
         {
             "reactor_id": reactor_id,
             "reactor_type": reactor_type,
-            "manure_fed_kg": manure,
-            "water_kg": water,
-            "air_temp_in_situ": local_temp,
-            "biogas_lag1": lag1,
-            "biogas_lag2": lag2,
-            "biogas_roll3": np.mean([lag1, lag2]),
-            "biogas_roll7": float(med.get("biogas_roll7", np.mean([lag1, lag2]))),
+            "biogas_roll3": np.mean([lag1, lag2, values.get("biogas_roll3", lag1)]),
+            "biogas_roll7": values.get("biogas_roll7", float(med.get("biogas_roll7", np.mean([lag1, lag2])))),
             "biogas_delta1": lag1 - lag2,
-            "days_since_prev": 1.0,
-            "daily_mean_air_temp": mean_temp,
-            "daily_max_air_temp": max_temp,
-            "daily_min_air_temp": min_temp,
-            "daily_solar": solar,
-            "daily_precip": precip,
-            "daily_wind": wind,
             "daily_temp_range": max_temp - min_temp,
         }
     )
-    sample = pd.DataFrame([row])[all_features]
-    pred = float(model.predict(sample)[0])
-    st.metric("Predicted daily biogas at STP", f"{pred:.1f} mL")
+    return row
 
-with tab_data:
-    st.subheader("Reactor summary")
-    st.dataframe(table1, use_container_width=True, hide_index=True)
-    st.subheader("Cleaned modelling records")
-    preview = clean_df.copy()
-    preview["reactor_id"] = preview["reactor_id"].map(rlab)
-    st.dataframe(preview[["date", "reactor_id", "reactor_type", TARGET] + numeric_features[:6]].head(200), use_container_width=True)
+
+def predict_frame(
+    input_df: pd.DataFrame,
+    model: Pipeline,
+    clean_df: pd.DataFrame,
+    numeric_features: list[str],
+    all_features: list[str],
+) -> pd.DataFrame:
+    med = clean_df[numeric_features].median(numeric_only=True)
+    rows = []
+    for _, raw in input_df.iterrows():
+        reactor_label = str(raw.get("reactor_id", raw.get("Reactor", "R1-FLEX")))
+        reactor_id = raw_reactor(reactor_label)
+        if reactor_id not in set(clean_df["reactor_id"]):
+            reactor_id = clean_df["reactor_id"].mode().iat[0]
+        reactor_type = raw.get("reactor_type")
+        if pd.isna(reactor_type) or reactor_type is None:
+            reactor_type = clean_df.loc[clean_df["reactor_id"] == reactor_id, "reactor_type"].mode().iat[0]
+        values = {}
+        for col in numeric_features:
+            value = raw.get(col, med.get(col, 0.0))
+            values[col] = float(pd.to_numeric(pd.Series([value]), errors="coerce").fillna(med.get(col, 0.0)).iat[0])
+        rows.append(build_sample_row(med, numeric_features, reactor_id, str(reactor_type), values))
+    features = pd.DataFrame(rows)[all_features]
+    out = input_df.copy()
+    out["predicted_biogas_STP_mL"] = model.predict(features)
+    return out
+
+
+def template_dataframe(clean_df: pd.DataFrame, numeric_features: list[str]) -> pd.DataFrame:
+    med = clean_df[numeric_features].median(numeric_only=True)
+    return pd.DataFrame(
+        [
+            {
+                "reactor_id": "R1-FLEX",
+                "reactor_type": "FLEX",
+                "manure_fed_kg": round(float(med.get("manure_fed_kg", 20.0)), 3),
+                "water_kg": round(float(med.get("water_kg", 20.0)), 3),
+                "air_temp_in_situ": round(float(med.get("air_temp_in_situ", 20.0)), 3),
+                "biogas_lag1": round(float(med.get("biogas_lag1", 500.0)), 3),
+                "biogas_lag2": round(float(med.get("biogas_lag2", 500.0)), 3),
+                "biogas_roll3": round(float(med.get("biogas_roll3", 500.0)), 3),
+                "biogas_roll7": round(float(med.get("biogas_roll7", 500.0)), 3),
+                "days_since_prev": 1,
+                "daily_mean_air_temp": round(float(med.get("daily_mean_air_temp", 18.0)), 3),
+                "daily_max_air_temp": round(float(med.get("daily_max_air_temp", 24.0)), 3),
+                "daily_min_air_temp": round(float(med.get("daily_min_air_temp", 14.0)), 3),
+                "daily_solar": round(float(med.get("daily_solar", 140.0)), 3),
+                "daily_precip": round(float(med.get("daily_precip", 0.0)), 3),
+                "daily_atm_p": round(float(med.get("daily_atm_p", 81.7)), 3),
+                "daily_vpd": round(float(med.get("daily_vpd", 0.3)), 3),
+                "daily_wind": round(float(med.get("daily_wind", 0.8)), 3),
+            }
+        ]
+    )
+
+
+st.set_page_config(page_title="Biogas STP Predictor", page_icon=":chart_with_upwards_trend:", layout="wide")
+
+st.markdown(
+    """
+    <style>
+    .stApp { background: #f7faf9; color: #1f2933; }
+    .block-container { padding-top: 1.2rem; padding-bottom: 2rem; max-width: 1180px; }
+    .hero {
+        background: linear-gradient(135deg, #123c55 0%, #0f766e 64%, #91D1C2 100%);
+        border-radius: 14px;
+        padding: 26px 30px;
+        color: white;
+        margin-bottom: 18px;
+        box-shadow: 0 16px 40px rgba(18, 60, 85, 0.18);
+    }
+    .hero h1 { margin: 0 0 0.45rem 0; font-size: 2.05rem; letter-spacing: 0; line-height: 1.15; }
+    .hero p { margin: 0; max-width: 880px; font-size: 1.02rem; line-height: 1.55; opacity: 0.94; }
+    div[data-testid="stForm"] {
+        background: #ffffff;
+        border: 1px solid #dce8e8;
+        border-radius: 12px;
+        padding: 18px 18px 8px 18px;
+        box-shadow: 0 8px 24px rgba(31, 41, 51, 0.05);
+    }
+    div[data-testid="stMetric"] {
+        background: #ffffff;
+        border: 1px solid #dce8e8;
+        border-radius: 12px;
+        padding: 14px 16px;
+        min-height: 104px;
+        box-shadow: 0 8px 22px rgba(31, 41, 51, 0.045);
+    }
+    div[data-testid="stMetricValue"] { color: #123c55; }
+    .result-card {
+        background: #ffffff;
+        border: 1px solid #dce8e8;
+        border-radius: 14px;
+        padding: 20px 22px;
+        box-shadow: 0 10px 28px rgba(31, 41, 51, 0.06);
+        margin-bottom: 16px;
+    }
+    .section-title {
+        color: #123c55;
+        font-size: 1.02rem;
+        font-weight: 800;
+        margin: 0.1rem 0 0.65rem 0;
+    }
+    .small-note { color: #607180; font-size: 0.92rem; line-height: 1.52; }
+    .stButton > button, .stDownloadButton > button {
+        border-radius: 9px;
+        min-height: 42px;
+        font-weight: 750;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+
+table1, table2, filter_summary = load_tables()
+model, clean_df, demo_metrics, numeric_features, categorical_features, all_features = train_demo_model()
+med = clean_df[numeric_features].median(numeric_only=True)
+
+st.markdown(
+    """
+    <div class="hero">
+      <h1>Biogas STP Predictor</h1>
+      <p>Enter reactor operation, weather, and recent biogas history to predict daily biogas production at STP.</p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
+with st.sidebar:
+    st.subheader("Model status")
+    st.metric("Test R2", f"{demo_metrics['test_r2']:.3f}")
+    st.metric("Test RMSE", f"{demo_metrics['rmse']:.1f} mL")
+    st.metric("Training records", f"{int(demo_metrics['n_train'])}")
+    st.metric("Test records", f"{int(demo_metrics['n_test'])}")
+    st.divider()
+    st.subheader("Auxiliary")
+    st.dataframe(table2[["Model", "R²", "RMSE"]].head(5), use_container_width=True, hide_index=True)
+    fig_path = FIG_DIR / "Fig03_model_comparison" / "Fig03_model_comparison.png"
+    if fig_path.exists():
+        with st.expander("Model comparison figure"):
+            st.image(str(fig_path), use_column_width=True)
+
+single_tab, batch_tab = st.tabs(["Single prediction", "Batch prediction"])
+
+with single_tab:
+    left, right = st.columns([1.12, 0.88], gap="large")
+    with left:
+        st.markdown('<div class="section-title">Input parameters</div>', unsafe_allow_html=True)
+        with st.form("single_prediction_form"):
+            c1, c2 = st.columns(2)
+            with c1:
+                reactor_display = st.selectbox("Reactor", sorted(clean_df["reactor_id"].map(rlab).unique()))
+                reactor_id = raw_reactor(reactor_display)
+                reactor_type = clean_df.loc[clean_df["reactor_id"] == reactor_id, "reactor_type"].mode().iat[0]
+                manure = st.number_input("Manure fed (kg)", value=float(med.get("manure_fed_kg", 20.0)), min_value=0.0)
+                water = st.number_input("Water (kg)", value=float(med.get("water_kg", 20.0)), min_value=0.0)
+                local_temp = st.number_input("Local air temperature", value=float(med.get("air_temp_in_situ", 20.0)))
+                lag1 = st.number_input("Biogas lag 1 (mL)", value=float(med.get("biogas_lag1", 500.0)), min_value=0.0)
+                lag2 = st.number_input("Biogas lag 2 (mL)", value=float(med.get("biogas_lag2", 500.0)), min_value=0.0)
+                roll7 = st.number_input("7-day historical average (mL)", value=float(med.get("biogas_roll7", 500.0)), min_value=0.0)
+            with c2:
+                mean_temp = st.number_input("Daily mean air temperature", value=float(med.get("daily_mean_air_temp", 18.0)))
+                max_temp = st.number_input("Daily max air temperature", value=float(med.get("daily_max_air_temp", 24.0)))
+                min_temp = st.number_input("Daily min air temperature", value=float(med.get("daily_min_air_temp", 14.0)))
+                solar = st.number_input("Daily solar", value=float(med.get("daily_solar", 140.0)), min_value=0.0)
+                precip = st.number_input("Daily precipitation", value=float(med.get("daily_precip", 0.0)), min_value=0.0)
+                atm_p = st.number_input("Daily atmospheric pressure", value=float(med.get("daily_atm_p", 81.7)))
+                vpd = st.number_input("Daily VPD", value=float(med.get("daily_vpd", 0.3)), min_value=0.0)
+                wind = st.number_input("Daily wind", value=float(med.get("daily_wind", 0.8)), min_value=0.0)
+            submitted = st.form_submit_button("Predict biogas production", use_container_width=True)
+
+    values = {
+        "manure_fed_kg": manure,
+        "water_kg": water,
+        "air_temp_in_situ": local_temp,
+        "biogas_lag1": lag1,
+        "biogas_lag2": lag2,
+        "biogas_roll3": np.mean([lag1, lag2]),
+        "biogas_roll7": roll7,
+        "days_since_prev": 1.0,
+        "daily_mean_air_temp": mean_temp,
+        "daily_max_air_temp": max_temp,
+        "daily_min_air_temp": min_temp,
+        "daily_solar": solar,
+        "daily_precip": precip,
+        "daily_atm_p": atm_p,
+        "daily_vpd": vpd,
+        "daily_wind": wind,
+    }
+    sample_row = build_sample_row(med, numeric_features, reactor_id, reactor_type, values)
+    sample = pd.DataFrame([sample_row])[all_features]
+    prediction = float(model.predict(sample)[0])
+
+    with right:
+        st.markdown('<div class="section-title">Prediction output</div>', unsafe_allow_html=True)
+        st.markdown('<div class="result-card">', unsafe_allow_html=True)
+        if submitted:
+            st.success("Prediction completed.")
+        st.metric("Predicted daily biogas at STP", f"{prediction:.1f} mL")
+        st.caption("Prediction is generated from the cleaned ExtraTrees regression model.")
+        st.markdown("</div>", unsafe_allow_html=True)
+        output = pd.DataFrame(
+            [
+                {
+                    "reactor_id": reactor_display,
+                    "reactor_type": reactor_type,
+                    **{k: round(float(v), 4) for k, v in values.items()},
+                    "predicted_biogas_STP_mL": prediction,
+                }
+            ]
+        )
+        st.dataframe(output, use_container_width=True, hide_index=True)
+        st.download_button(
+            "Download prediction CSV",
+            data=output.to_csv(index=False).encode("utf-8-sig"),
+            file_name="biogas_single_prediction.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
+
+with batch_tab:
+    st.markdown('<div class="section-title">Batch prediction from CSV</div>', unsafe_allow_html=True)
+    template = template_dataframe(clean_df, numeric_features)
+    st.download_button(
+        "Download input template",
+        data=template.to_csv(index=False).encode("utf-8-sig"),
+        file_name="biogas_prediction_template.csv",
+        mime="text/csv",
+    )
+    uploaded = st.file_uploader("Upload a CSV file with one or more candidate operating conditions", type=["csv"])
+    if uploaded is not None:
+        batch = pd.read_csv(uploaded)
+        result = predict_frame(batch, model, clean_df, numeric_features, all_features)
+        st.success(f"Predicted {len(result)} rows.")
+        st.dataframe(result, use_container_width=True, hide_index=True)
+        st.download_button(
+            "Download batch predictions",
+            data=result.to_csv(index=False).encode("utf-8-sig"),
+            file_name="biogas_batch_predictions.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
+    else:
+        st.info("Upload the template after editing values, or provide a compatible CSV with matching column names.")
